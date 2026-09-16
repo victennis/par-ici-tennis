@@ -1,4 +1,4 @@
-name: Tennis booking dry-run
+name: Tennis booking (test)
 
 on:
   workflow_dispatch:
@@ -6,39 +6,30 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: ${{ github.workflow }}
-  cancel-in-progress: true
-
 jobs:
-  run-once:
-    name: dry-run script
+  book_19h:
+    name: Test réservation 19h
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: 24
-
-      - name: Create config.json from variables
+      - name: Create config.json (19h)
         env:
-          CONFIG_JSON: ${{ vars.CONFIG_JSON }}
+          CONFIG_JSON: ${{ vars.CONFIG_JSON_19H }}
         run: |
           set -euo pipefail
           if [ -n "${CONFIG_JSON:-}" ]; then
             printf "%s" "$CONFIG_JSON" > config.json
-            echo "config.json created from CONFIG_JSON secret"
           else
-            echo "ERROR: Missing CONFIG_JSON secret." >&2
+            echo "ERROR: variable CONFIG_JSON_19H manquante." >&2
             exit 1
           fi
-
       - name: Install dependencies
         run: npm ci --production --ignore-scripts
-      
       - name: Cache Playwright browser
         uses: actions/cache@v5
         with:
@@ -46,11 +37,49 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             playwright-${{ runner.os }}-
-      
       - name: Install Playwright browser (only-shell)
         run: npx playwright install chromium --only-shell
+      - name: Run script (dry run, aucune vraie réservation)
+        env:
+          ACCOUNT_EMAIL: ${{ secrets.ACCOUNT_EMAIL }}
+          ACCOUNT_PASSWORD: ${{ secrets.ACCOUNT_PASSWORD }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          NTFY_DOMAIN: ${{ secrets.NTFY_DOMAIN }}
+        run: npm run start-dry
 
-      - name: Run script
+  book_20h:
+    name: Test réservation 20h
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Create config.json (20h)
+        env:
+          CONFIG_JSON: ${{ vars.CONFIG_JSON_20H }}
+        run: |
+          set -euo pipefail
+          if [ -n "${CONFIG_JSON:-}" ]; then
+            printf "%s" "$CONFIG_JSON" > config.json
+          else
+            echo "ERROR: variable CONFIG_JSON_20H manquante." >&2
+            exit 1
+          fi
+      - name: Install dependencies
+        run: npm ci --production --ignore-scripts
+      - name: Cache Playwright browser
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+      - name: Install Playwright browser (only-shell)
+        run: npx playwright install chromium --only-shell
+      - name: Run script (dry run, aucune vraie réservation)
         env:
           ACCOUNT_EMAIL: ${{ secrets.ACCOUNT_EMAIL }}
           ACCOUNT_PASSWORD: ${{ secrets.ACCOUNT_PASSWORD }}
