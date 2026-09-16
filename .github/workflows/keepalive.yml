@@ -1,0 +1,27 @@
+name: Keepalive
+
+# GitHub désactive automatiquement une Action programmée (schedule) si le dépôt
+# ne reçoit plus aucun commit pendant 60 jours. Ce petit workflow fait un commit
+# vide une fois par mois pour que ça n'arrive jamais.
+
+on:
+  schedule:
+    - cron: '0 6 1 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  keepalive:
+    name: Commit vide mensuel
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Commit vide
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit --allow-empty -m "keepalive"
+          git push
