@@ -74,7 +74,12 @@ const bookTennis = async () => {
           for (const slot of slots) {
             const bookSlotButton = `[courtid="${await slot.getAttribute('courtid')}"]${dateDeb}`
             if (courtNumbers.length > 0) {
-              const courtName = (await page.locator(`.court:left-of(${bookSlotButton})`).innerText()).trim()
+              const courtName = (
+                await page
+                  .locator(`.row.tennis-court:has(${bookSlotButton})`)
+                  .locator('.court')
+                  .innerText()
+              ).trim()
               if (!courtNumbers.includes(parseInt(courtName.match(/Court N°(\d+)/)[1]))) {
                 continue
               }
