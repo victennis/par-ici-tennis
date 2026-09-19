@@ -12,6 +12,9 @@ dayjs.extend(customParseFormat)
 dayjs.extend(utc)
 dayjs.extend(timezone)
 
+const MAX_SEARCH_ATTEMPTS = 6
+const RETRY_DELAY_MS = 2000
+
 const waitUntil8AM = async () => {
   const now = dayjs().tz('Europe/Paris')
   const next8AM = now.hour(8).minute(0).second(0).millisecond(0)
@@ -80,45 +83,53 @@ const bookTennis = async () => {
       await page.click(`[dateiso="${date.format('DD/MM/YYYY')}"]`)
       await page.waitForSelector('.date-picker', { state: 'hidden' })
 
-      await page.click('#rechercher')
-
-      // wait until the results page is fully loaded before continue
-      await page.waitForLoadState('domcontentloaded')
-
       let selectedHour
-      hoursLoop:
-      for (const hour of config.hours) {
-        const dateDeb = `[datedeb="${date.format('YYYY/MM/DD')} ${hour}:00:00"]`
-        if (await page.locator(dateDeb).count()) {
-          if (await page.isHidden(dateDeb)) {
-            await page.click(`#head${location.replaceAll(' ', '')}${hour}h .panel-title`)
-          }
+      searchRetryLoop:
+      for (let attempt = 1; attempt <= MAX_SEARCH_ATTEMPTS; attempt++) {
+        await page.click('#rechercher')
 
-          const courtNumbers = !Array.isArray(config.locations) ? config.locations[location] : []
-          const slots = await page.locator(dateDeb).all()
-          for (const slot of slots) {
-            const bookSlotButton = `[courtid="${await slot.getAttribute('courtid')}"]${dateDeb}`
-            if (courtNumbers.length > 0) {
-              const courtName = (
-                await page
-                  .locator(`.row.tennis-court:has(${bookSlotButton})`)
-                  .locator('.court')
-                  .innerText()
-              ).trim()
-              if (!courtNumbers.includes(parseInt(courtName.match(/Court N°(\d+)/)[1]))) {
+        // wait until the results page is fully loaded before continue
+        await page.waitForLoadState('domcontentloaded')
+
+        hoursLoop:
+        for (const hour of config.hours) {
+          const dateDeb = `[datedeb="${date.format('YYYY/MM/DD')} ${hour}:00:00"]`
+          if (await page.locator(dateDeb).count()) {
+            if (await page.isHidden(dateDeb)) {
+              await page.click(`#head${location.replaceAll(' ', '')}${hour}h .panel-title`)
+            }
+
+            const courtNumbers = !Array.isArray(config.locations) ? config.locations[location] : []
+            const slots = await page.locator(dateDeb).all()
+            for (const slot of slots) {
+              const bookSlotButton = `[courtid="${await slot.getAttribute('courtid')}"]${dateDeb}`
+              if (courtNumbers.length > 0) {
+                const courtName = (
+                  await page
+                    .locator(`.row.tennis-court:has(${bookSlotButton})`)
+                    .locator('.court')
+                    .innerText()
+                ).trim()
+                if (!courtNumbers.includes(parseInt(courtName.match(/Court N°(\d+)/)[1]))) {
+                  continue
+                }
+              }
+
+              const [priceType, courtType] = (await page.locator(`.row.tennis-court:has(${bookSlotButton})`).locator('.price-description').innerHTML()).split('<br>')
+              if (!config.priceType.includes(priceType) || !config.courtType.includes(courtType)) {
                 continue
               }
-            }
+              selectedHour = hour
+              await page.click(bookSlotButton)
 
-            const [priceType, courtType] = (await page.locator(`.row.tennis-court:has(${bookSlotButton})`).locator('.price-description').innerHTML()).split('<br>')
-            if (!config.priceType.includes(priceType) || !config.courtType.includes(courtType)) {
-              continue
+              break searchRetryLoop
             }
-            selectedHour = hour
-            await page.click(bookSlotButton)
-
-            break hoursLoop
           }
+        }
+
+        if (attempt < MAX_SEARCH_ATTEMPTS) {
+          console.log(`${dayjs().format()} - Rien de disponible pour ${logLocation} (tentative ${attempt}/${MAX_SEARCH_ATTEMPTS}), nouvel essai dans ${RETRY_DELAY_MS} ms`)
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS))
         }
       }
 
