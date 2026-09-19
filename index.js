@@ -1,12 +1,30 @@
 import { chromium } from 'playwright'
 import dayjs from 'dayjs'
 import customParseFormat from 'dayjs/plugin/customParseFormat.js'
+import utc from 'dayjs/plugin/utc.js'
+import timezone from 'dayjs/plugin/timezone.js'
 import { writeFileSync } from 'fs'
 import { createEvent } from 'ics'
 import { config } from './staticFiles.js'
 import { notify } from './lib/ntfy.js'
 
 dayjs.extend(customParseFormat)
+dayjs.extend(utc)
+dayjs.extend(timezone)
+
+const waitUntil8AM = async () => {
+  const now = dayjs().tz('Europe/Paris')
+  const next8AM = now.hour(8).minute(0).second(0).millisecond(0)
+
+  if (now.isAfter(next8AM)) {
+    return
+  }
+
+  const waitMs = next8AM.diff(now)
+  console.log(`${dayjs().format()} - Waiting until 8 AM Paris time (${next8AM.format()}) - sleeping for ${waitMs} ms`)
+
+  return new Promise(resolve => setTimeout(resolve, waitMs))
+}
 
 const bookTennis = async () => {
   const DRY_RUN_MODE = process.argv.includes('--dry-run')
@@ -34,6 +52,13 @@ const bookTennis = async () => {
 
   // wait for login redirection before continue
   await page.waitForSelector('.main-informations')
+
+  // Toutes les étapes ci-dessus (lancement du navigateur, connexion) sont déjà
+  // terminées avant 8h00. Il ne reste plus que la recherche et le clic final,
+  // qui doivent se faire pile à l'ouverture des réservations.
+  if (process.env.WAIT_FOR_8AM === 'true') {
+    await waitUntil8AM()
+  }
 
   try {
     const locations = !Array.isArray(config.locations) ? Object.keys(config.locations) : config.locations
