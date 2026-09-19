@@ -54,14 +54,11 @@ jobs:
       - name: Install Playwright browser (only-shell)
         run: npx playwright install chromium --only-shell
 
-      - name: Wait 08:00 Europe/Paris
-        if: github.event_name == 'schedule'
-        run: npm run wait
-
       - name: Run script
         env:
           ACCOUNT_EMAIL: ${{ secrets.ACCOUNT_EMAIL }}
           ACCOUNT_PASSWORD: ${{ secrets.ACCOUNT_PASSWORD }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           NTFY_DOMAIN: ${{ secrets.NTFY_DOMAIN }}
+          WAIT_FOR_8AM: ${{ github.event_name == 'schedule' }}
         run: npm start
