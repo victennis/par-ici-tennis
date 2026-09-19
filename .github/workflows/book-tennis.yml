@@ -2,9 +2,9 @@ name: Tennis booking
 
 on:
   schedule:
-    # Se déclenche à 7h45 (marge de sécurité), uniquement le samedi (6).
-    # samedi -> vise le vendredi soir suivant (recherche 6 jours à l'avance)
-    - cron: '45 7 * * 6'
+    # Se déclenche à 7h45 (marge de sécurité), samedi (6) et dimanche (0).
+    # samedi -> vise le vendredi soir suivant / dimanche -> vise le samedi soir suivant
+    - cron: '45 7 * * 6,0'
       timezone: 'Europe/Paris'
   workflow_dispatch:
 
